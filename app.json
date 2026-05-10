@@ -30,7 +30,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.gfuture.mobile",
       "usesCleartextTraffic": true,
-      "versionCode": 19
+      "versionCode": 20
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,6 +50,6 @@
         "projectId": "846277de-14af-464f-8ef7-98432e88392e"
       }
     },
-    "owner": "muralimohan"
+    "owner": "gfutiure"
   }
 }

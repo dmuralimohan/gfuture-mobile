@@ -13,14 +13,12 @@ export const CartProvider = ({ children }) => {
   const [items, setItems] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
-  // Load cart from AsyncStorage on mount
   React.useEffect(() => {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem('cart');
         if (saved) setItems(JSON.parse(saved));
       } catch (e) {
-        // ignore
       } finally {
         setLoaded(true);
       }
