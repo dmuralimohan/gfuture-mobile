@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,9 @@ import {
   StatusBar,
   TextInput,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +36,7 @@ const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [locationLabel, setLocationLabel] = useState('Fetching location...');
+  const [locationCoords, setLocationCoords] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -65,6 +66,7 @@ const HomeScreen = ({ navigation }) => {
     fetchData();
   }, [fetchData]);
 
+  // Initial location fetch
   useEffect(() => {
     (async () => {
       try {
@@ -84,6 +86,8 @@ const HomeScreen = ({ navigation }) => {
           longitude: pos.coords.longitude,
         };
 
+        setLocationCoords(coords);
+
         const [addr] = await Location.reverseGeocodeAsync(coords);
         const text = [addr?.subregion, addr?.city, addr?.region].filter(Boolean).join(', ');
         setLocationLabel(text || 'Current location');
@@ -93,14 +97,48 @@ const HomeScreen = ({ navigation }) => {
     })();
   }, []);
 
+  // Update location every 30 seconds for real-time tracking
+  useEffect(() => {
+    const locationInterval = setInterval(async () => {
+      try {
+        const { status } = await Location.getPermissionsAsync();
+        if (status !== 'granted') return;
+
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        const coords = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+
+        setLocationCoords(coords);
+
+        // Update location label
+        const [addr] = await Location.reverseGeocodeAsync(coords);
+        const text = [addr?.subregion, addr?.city, addr?.region].filter(Boolean).join(', ');
+        setLocationLabel(text || 'Current location');
+      } catch (e) {
+        // Silently fail on location update
+      }
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(locationInterval);
+  }, []);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
   };
 
-  const filteredServices = services.filter((s) =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()),
+  // Memoized filtered services to prevent unnecessary recalculations
+  const filteredServices = useMemo(
+    () => services.filter((s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    ),
+    [services, searchQuery],
   );
 
   const firstName = user?.name?.split(' ')[0] || 'Guest';
@@ -116,7 +154,8 @@ const HomeScreen = ({ navigation }) => {
     'Pest Control': 'bug',
   };
 
-  const renderHeader = () => (
+  // Memoized header component to prevent keyboard from dismissing
+  const renderHeader = useCallback(() => (
     <View>
       {/* Dark Header */ }
       <LinearGradient
@@ -288,6 +327,32 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </LinearGradient>
       </TouchableOpacity>
+      {/* GCourse Banner */ }
+      <TouchableOpacity
+        style={ styles.gcourseBanner }
+        onPress={ () => navigation.navigate('CourseHub') }
+        activeOpacity={ 0.9 }
+      >
+        <LinearGradient
+          colors={ ['#111827', '#334155'] }
+          start={ { x: 0, y: 0 } }
+          end={ { x: 1, y: 1 } }
+          style={ styles.gcourseBannerGradient }
+        >
+          <View style={ { flex: 1 } }>
+            <Text style={ styles.gcourseTag }>{ user?.role === 'provider' ? 'PROVIDER HUB' : 'LEARN & JOIN' }</Text>
+            <Text style={ styles.gcourseTitle }>GCourse</Text>
+            <Text style={ styles.gcourseSub }>
+              { user?.role === 'provider'
+                ? 'Create courses, upload videos and notify enrolled learners.'
+                : 'Explore live courses, download files and join sessions.' }
+            </Text>
+          </View>
+          <View style={ styles.gcourseIconWrap }>
+            <Ionicons name={ user?.role === 'provider' ? 'school' : 'play-circle' } size={ 34 } color="#fff" />
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
       {/* Tab Switcher */ }
       <View style={ styles.tabRow }>
         <TouchableOpacity
@@ -318,7 +383,7 @@ const HomeScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
     </View>
-  );
+  ), [user, locationLabel, categories, wallet, offers, activeTab, navigation, categoryIcons, firstName]);
 
   return (
     <View style={ [styles.container, { backgroundColor: Colors.backgroundDefault }] }>
@@ -536,16 +601,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   quickIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickLabel: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 0.5 },
-  quickValue: { fontSize: 11, fontWeight: '800', color: Colors.textPrimary },
+  quickLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  quickValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
 
-  // G-Rider Banner
+  // G Rider Banner
   griderBanner: {
     marginHorizontal: Spacing.xl,
     marginBottom: Spacing.lg,
@@ -555,81 +628,107 @@ const styles = StyleSheet.create({
   griderBannerGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.xl,
-    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
   },
   griderTag: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#fbbf24',
+    color: '#fff',
     letterSpacing: 1.5,
     marginBottom: 4,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    overflow: 'hidden',
   },
   griderTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     color: '#fff',
     marginBottom: 4,
   },
   griderSub: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.85)',
-    fontWeight: '500',
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
   },
   griderIconWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 12,
+    marginLeft: 'auto',
   },
 
-  // Tabs
+  // GCourse Banner
+  gcourseBanner: {
+    marginHorizontal: Spacing.xl,
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+  },
+  gcourseBannerGradient: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: Spacing.lg,
+  },
+  gcourseTag: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  gcourseTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  gcourseSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  gcourseIconWrap: {
+    marginLeft: 'auto',
+  },
+
+  // Tab Row
   tabRow: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.xl,
+    marginHorizontal: Spacing.xl,
     marginBottom: Spacing.lg,
-    gap: Spacing.xxl,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   tab: {
-    paddingBottom: Spacing.sm,
+    flex: 1,
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomWidth: 2.5,
     borderBottomColor: Colors.primary,
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: Colors.textMuted,
-    letterSpacing: 1.5,
+    color: Colors.textSecondary,
+    letterSpacing: 1,
   },
   tabTextActive: {
     color: Colors.primary,
   },
 
-  // Empty
+  // Empty State
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: Colors.textSecondary,
+    color: Colors.textPrimary,
     marginTop: Spacing.lg,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: Colors.textMuted,
+    fontSize: 13,
+    color: Colors.textSecondary,
     marginTop: Spacing.sm,
   },
 });

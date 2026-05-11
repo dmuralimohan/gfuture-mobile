@@ -37,6 +37,22 @@ export const orderService = {
   setCourseMeetingLink: (id, data) => api.post(`/api/orders/${id}/course-meeting`, data),
 };
 
+export const courseService = {
+  getAll: (params = {}) => api.get('/api/courses', { params }),
+  getMine: () => api.get('/api/courses/me'),
+  getById: (id) => api.get(`/api/courses/${id}`),
+  create: (data) => api.post('/api/courses', data),
+  update: (id, data) => api.put(`/api/courses/${id}`, data),
+  enroll: (id) => api.post(`/api/courses/${id}/enroll`),
+  shareMeeting: (id, data = {}) => api.post(`/api/courses/${id}/meeting/share`, data),
+};
+
+export const notificationService = {
+  getAll: () => api.get('/api/notifications'),
+  markRead: (id) => api.patch(`/api/notifications/${id}/read`),
+  markAllRead: () => api.post('/api/notifications/read-all'),
+};
+
 export const paymentService = {
   initiate: (orderId) => api.post('/api/payments/initiate', { orderId }),
   verify: (data) => api.post('/api/payments/verify', data),

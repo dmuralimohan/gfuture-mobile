@@ -4,6 +4,8 @@ export {
   serviceAPI,
   categoryService,
   orderService,
+  courseService,
+  notificationService,
   paymentService,
   otpService,
   walletService,

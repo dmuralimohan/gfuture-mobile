@@ -29,6 +29,14 @@ import DriverRegisterScreen from '../screens/GRiderDriver/DriverRegisterScreen';
 import DriverDashboardScreen from '../screens/GRiderDriver/DriverDashboardScreen';
 import DriverActiveRideScreen from '../screens/GRiderDriver/DriverActiveRideScreen';
 import DriverHistoryScreen from '../screens/GRiderDriver/DriverHistoryScreen';
+import CourseHubScreen from '../screens/Courses/CourseHubScreen';
+import CourseDetailScreen from '../screens/Courses/CourseDetailScreen';
+import CourseFormScreen from '../screens/Courses/CourseFormScreen';
+import PrivacyScreen from '../screens/Info/PrivacyScreen';
+import SecurityScreen from '../screens/Info/SecurityScreen';
+import HelpScreen from '../screens/Info/HelpScreen';
+import SupportScreen from '../screens/Info/SupportScreen';
+import AboutScreen from '../screens/Info/AboutScreen';
 
 // Separate navigator instances to prevent state leaking between auth/main
 const AuthStackNav = createNativeStackNavigator();
@@ -77,6 +85,14 @@ const MainStack = () => (
     <MainStackNav.Screen name="DriverDashboard" component={ DriverDashboardScreen } />
     <MainStackNav.Screen name="DriverActiveRide" component={ DriverActiveRideScreen } />
     <MainStackNav.Screen name="DriverHistory" component={ DriverHistoryScreen } />
+    <MainStackNav.Screen name="CourseHub" component={ CourseHubScreen } />
+    <MainStackNav.Screen name="CourseDetail" component={ CourseDetailScreen } />
+    <MainStackNav.Screen name="CourseForm" component={ CourseFormScreen } />
+    <MainStackNav.Screen name="Privacy" component={ PrivacyScreen } />
+    <MainStackNav.Screen name="Security" component={ SecurityScreen } />
+    <MainStackNav.Screen name="Help" component={ HelpScreen } />
+    <MainStackNav.Screen name="Support" component={ SupportScreen } />
+    <MainStackNav.Screen name="About" component={ AboutScreen } />
   </MainStackNav.Navigator>
 );
 

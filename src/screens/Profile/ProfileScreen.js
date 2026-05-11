@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import InputField from '../../components/InputField';
 import GradientButton from '../../components/GradientButton';
 import { useAuth } from '../../context/AuthContext';
-import { walletService } from '../../services';
+import { authService, walletService } from '../../services';
 import { Colors, Spacing, BorderRadius, Shadows, Gradients } from '../../theme';
 
 const MENU_SECTIONS = [
@@ -53,6 +53,10 @@ const ProfileScreen = ({ navigation }) => {
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
+    designation: '',
+    experience_years: '',
+    expertise: '',
+    bio: '',
   });
 
   // Sync form with user data when it loads or changes
@@ -62,9 +66,31 @@ const ProfileScreen = ({ navigation }) => {
         name: user.name || '',
         email: user.email || '',
         phone: user.phone || '',
+        designation: '',
+        experience_years: '',
+        expertise: '',
+        bio: '',
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    (async () => {
+      if (user?.role !== 'provider') return;
+      try {
+        const { data } = await authService.getProfile();
+        if (data.providerProfile) {
+          setForm((prev) => ({
+            ...prev,
+            designation: data.providerProfile.designation || '',
+            experience_years: data.providerProfile.experience_years?.toString?.() || '',
+            expertise: data.providerProfile.expertise || '',
+            bio: data.providerProfile.bio || '',
+          }));
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [user?.role]);
 
   const fetchWallet = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -196,6 +222,41 @@ const ProfileScreen = ({ navigation }) => {
               icon="call-outline"
               keyboardType="phone-pad"
             />
+            { user?.role === 'provider' && (
+              <>
+                <InputField
+                  label="Designation"
+                  value={ form.designation }
+                  onChangeText={ (v) => setForm((p) => ({ ...p, designation: v })) }
+                  icon="briefcase-outline"
+                  placeholder="Senior trainer"
+                />
+                <InputField
+                  label="Experience (years)"
+                  value={ form.experience_years }
+                  onChangeText={ (v) => setForm((p) => ({ ...p, experience_years: v })) }
+                  icon="time-outline"
+                  keyboardType="number-pad"
+                  placeholder="8"
+                />
+                <InputField
+                  label="Expertise"
+                  value={ form.expertise }
+                  onChangeText={ (v) => setForm((p) => ({ ...p, expertise: v })) }
+                  icon="sparkles-outline"
+                  placeholder="React Native, UX"
+                />
+                <InputField
+                  label="Bio"
+                  value={ form.bio }
+                  onChangeText={ (v) => setForm((p) => ({ ...p, bio: v })) }
+                  icon="document-text-outline"
+                  placeholder="Short provider bio"
+                  multiline
+                  inputStyle={ { minHeight: 100 } }
+                />
+              </>
+            ) }
             <GradientButton
               title="SAVE CHANGES"
               onPress={ handleSave }
@@ -209,9 +270,33 @@ const ProfileScreen = ({ navigation }) => {
             <InfoRow icon="person-outline" label="Name" value={ user?.name } />
             <InfoRow icon="mail-outline" label="Email" value={ user?.email } />
             <InfoRow icon="call-outline" label="Phone" value={ user?.phone } />
+            { user?.role === 'provider' && (
+              <>
+                <InfoRow icon="briefcase-outline" label="Designation" value={ form.designation } />
+                <InfoRow icon="time-outline" label="Experience" value={ form.experience_years ? `${form.experience_years} years` : '' } />
+                <InfoRow icon="sparkles-outline" label="Expertise" value={ form.expertise } />
+              </>
+            ) }
           </View>
         ) }
       </View>
+
+      { user?.role === 'provider' && (
+        <View style={ styles.section }>
+          <TouchableOpacity style={ styles.courseShortcut } onPress={ () => navigation.navigate('CourseHub') }>
+            <View style={ styles.courseShortcutLeft }>
+              <View style={ styles.courseShortcutIcon }>
+                <Ionicons name="school" size={ 22 } color={ Colors.primary } />
+              </View>
+              <View>
+                <Text style={ styles.courseShortcutTitle }>Manage GCourse</Text>
+                <Text style={ styles.courseShortcutSub }>Create courses and share live sessions</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={ 18 } color={ Colors.textMuted } />
+          </TouchableOpacity>
+        </View>
+      ) }
 
       {/* Menu Sections */ }
       { MENU_SECTIONS.map((section, sIdx) => (
@@ -407,6 +492,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
     marginTop: 2,
+    courseShortcut: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: Colors.backgroundPaper,
+      borderRadius: BorderRadius.lg,
+      padding: Spacing.lg,
+      ...Shadows.sm,
+    },
+    courseShortcutLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    courseShortcutIcon: {
+      width: 46,
+      height: 46,
+      borderRadius: 16,
+      backgroundColor: '#eff6ff',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    courseShortcutTitle: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: Colors.textPrimary,
+    },
+    courseShortcutSub: {
+      fontSize: 12,
+      color: Colors.textSecondary,
+      marginTop: 2,
+    },
   },
 
   // Menu

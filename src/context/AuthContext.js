@@ -59,41 +59,72 @@ export const AuthProvider = ({ children }) => {
     })();
   }, [user]);
 
+  // Persist auth tokens, but do not fail login if device storage temporarily fails.
+  const persistTokens = useCallback(async (accessToken, refreshToken) => {
+    try {
+      await SecureStore.setItemAsync('accessToken', accessToken);
+      await SecureStore.setItemAsync('refreshToken', refreshToken);
+      return null;
+    } catch (e) {
+      return e;
+    }
+  }, []);
+
   const login = useCallback(async (email, password) => {
     setAuthLoading(true);
     try {
       const { data } = await authService.login(email, password);
-      await SecureStore.setItemAsync('accessToken', data.accessToken);
-      await SecureStore.setItemAsync('refreshToken', data.refreshToken);
+      const tokenPersistError = await persistTokens(data.accessToken, data.refreshToken);
       setUser(data.user);
-      return { success: true, user: data.user };
+      return {
+        success: true,
+        user: data.user,
+        warning: tokenPersistError
+          ? 'Logged in, but secure storage failed. Session may not persist after app restart.'
+          : null,
+      };
     } catch (err) {
+      const fallbackMessage =
+        err?.response?.data?.error ||
+        err?.response?.statusText ||
+        err?.message ||
+        'Login failed';
       return {
         success: false,
-        message: err.response?.data?.message || 'Login failed',
+        message: err?.response?.data?.message || fallbackMessage,
       };
     } finally {
       setAuthLoading(false);
     }
-  }, []);
+  }, [persistTokens]);
 
   const signup = useCallback(async (userData) => {
     setAuthLoading(true);
     try {
       const { data } = await authService.signup(userData);
-      await SecureStore.setItemAsync('accessToken', data.accessToken);
-      await SecureStore.setItemAsync('refreshToken', data.refreshToken);
+      const tokenPersistError = await persistTokens(data.accessToken, data.refreshToken);
       setUser(data.user);
-      return { success: true, user: data.user };
+      return {
+        success: true,
+        user: data.user,
+        warning: tokenPersistError
+          ? 'Signed up, but secure storage failed. Session may not persist after app restart.'
+          : null,
+      };
     } catch (err) {
+      const fallbackMessage =
+        err?.response?.data?.error ||
+        err?.response?.statusText ||
+        err?.message ||
+        'Signup failed';
       return {
         success: false,
-        message: err.response?.data?.message || 'Signup failed',
+        message: err?.response?.data?.message || fallbackMessage,
       };
     } finally {
       setAuthLoading(false);
     }
-  }, []);
+  }, [persistTokens]);
 
   const logout = useCallback(async () => {
     try {

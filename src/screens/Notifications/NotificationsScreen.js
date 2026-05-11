@@ -1,90 +1,100 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ScreenHeader from '../../components/ScreenHeader';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../theme';
-
-const NOTIFICATIONS = [
-  {
-    id: '1',
-    title: 'Order Confirmed',
-    body: 'Your order #A1B2C3 has been confirmed and is being processed.',
-    time: '2 min ago',
-    icon: 'checkmark-circle',
-    color: Colors.success,
-    read: false,
-  },
-  {
-    id: '2',
-    title: 'Special Offer!',
-    body: '20% off on all home cleaning services this weekend.',
-    time: '1 hour ago',
-    icon: 'pricetag',
-    color: Colors.accentOrange,
-    read: false,
-  },
-  {
-    id: '3',
-    title: 'Welcome to GFuture',
-    body: 'Start exploring products and services in your area.',
-    time: '1 day ago',
-    icon: 'gift',
-    color: Colors.primary,
-    read: true,
-  },
-  {
-    id: '4',
-    title: 'Referral Bonus',
-    body: 'You earned ₹50 from your referral. Keep sharing!',
-    time: '2 days ago',
-    icon: 'people',
-    color: Colors.accentCyan,
-    read: true,
-  },
-];
+import { notificationService } from '../../services';
 
 const NotificationsScreen = ({ navigation }) => {
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const { data } = await notificationService.getAll();
+      setNotifications(data.notifications || []);
+      setUnreadCount(data.unreadCount || 0);
+    } catch {
+      setNotifications([]);
+      setUnreadCount(0);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchNotifications();
+  };
+
+  const handlePress = async (item) => {
+    if (!item.read_at) {
+      try {
+        await notificationService.markRead(item.id);
+        setNotifications((prev) => prev.map((row) => (row.id === item.id ? { ...row, read_at: row.read_at || new Date().toISOString() } : row)));
+        setUnreadCount((prev) => Math.max(prev - 1, 0));
+      } catch { /* ignore */ }
+    }
+
+    if (item.payload?.courseId) {
+      navigation.navigate('CourseDetail', { courseId: item.payload.courseId });
+    }
+  };
+
   const renderNotification = ({ item }) => (
     <TouchableOpacity
-      style={[
+      style={ [
         styles.notifCard,
         Shadows.sm,
-        !item.read && styles.notifUnread,
-      ]}
-      activeOpacity={0.8}
+        !item.read_at && styles.notifUnread,
+      ] }
+      activeOpacity={ 0.8 }
+      onPress={ () => handlePress(item) }
     >
-      <View style={[styles.iconCircle, { backgroundColor: `${item.color}15` }]}>
-        <Ionicons name={item.icon} size={22} color={item.color} />
+      <View style={ [styles.iconCircle, { backgroundColor: item.type?.includes('course') ? '#eff6ff' : `${Colors.primary}15` }] }>
+        <Ionicons
+          name={ item.type?.includes('course') ? 'school' : item.type?.includes('offer') ? 'pricetag' : 'notifications' }
+          size={ 22 }
+          color={ item.type?.includes('course') ? Colors.primary : Colors.accentOrange }
+        />
       </View>
-      <View style={styles.notifContent}>
-        <View style={styles.notifHeader}>
-          <Text style={styles.notifTitle}>{item.title}</Text>
-          {!item.read && <View style={styles.unreadDot} />}
+      <View style={ styles.notifContent }>
+        <View style={ styles.notifHeader }>
+          <Text style={ styles.notifTitle }>{ item.title }</Text>
+          { !item.read_at && <View style={ styles.unreadDot } /> }
         </View>
-        <Text style={styles.notifBody} numberOfLines={2}>{item.body}</Text>
-        <Text style={styles.notifTime}>{item.time}</Text>
+        <Text style={ styles.notifBody } numberOfLines={ 2 }>{ item.body }</Text>
+        <Text style={ styles.notifTime }>{ item.created_at ? new Date(item.created_at).toLocaleString() : '' }</Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <ScreenHeader title="Notifications" />
+    <View style={ styles.container }>
+      <ScreenHeader title={ `Notifications${unreadCount ? ` (${unreadCount})` : ''}` } />
       <FlatList
-        data={NOTIFICATIONS}
-        keyExtractor={(item) => item.id}
-        renderItem={renderNotification}
-        contentContainerStyle={styles.listContent}
+        data={ notifications }
+        keyExtractor={ (item) => item.id }
+        renderItem={ renderNotification }
+        contentContainerStyle={ styles.listContent }
+        refreshControl={ <RefreshControl refreshing={ refreshing } onRefresh={ onRefresh } /> }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="notifications-off-outline" size={64} color={Colors.textMuted} />
-            <Text style={styles.emptyTitle}>No notifications</Text>
+          <View style={ styles.emptyContainer }>
+            <Ionicons name="notifications-off-outline" size={ 64 } color={ Colors.textMuted } />
+            <Text style={ styles.emptyTitle }>No notifications</Text>
+            <Text style={ styles.emptySub }>Course updates and alerts will appear here.</Text>
           </View>
         }
       />
@@ -159,6 +169,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textSecondary,
     marginTop: Spacing.lg,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
 
