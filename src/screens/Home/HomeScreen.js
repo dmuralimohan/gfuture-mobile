@@ -33,6 +33,24 @@ const CATEGORY_ICONS = {
   'Pest Control': 'bug',
 };
 
+const MUI_TO_IONICONS = {
+  BuildCircle: 'construct',
+  ElectricalServices: 'flash',
+  CleaningServices: 'sparkles',
+  WaterDrop: 'water',
+  Bathtub: 'home',
+  AcUnit: 'snow',
+  FormatPaint: 'color-palette',
+  BugReport: 'bug',
+};
+
+const resolveCategoryIconName = (category) => {
+  const iconKey = String(category?.icon || '').trim();
+  if (iconKey && MUI_TO_IONICONS[iconKey]) return MUI_TO_IONICONS[iconKey];
+  if (iconKey && /^[a-z0-9-]+$/.test(iconKey)) return iconKey;
+  return CATEGORY_ICONS[category?.name] || 'grid';
+};
+
 const CATEGORY_PALETTE = [
   { iconBg: '#e0f2fe', iconColor: '#0369a1' },
   { iconBg: '#dcfce7', iconColor: '#166534' },
@@ -249,7 +267,7 @@ const HomeScreen = ({ navigation }) => {
                   onPress={ () => navigation.navigate('Services', { categoryId: cat.id, categoryName: cat.name }) }
                 >
                   <View style={ [styles.catIcon, { backgroundColor: p.iconBg }] }>
-                    <Ionicons name={ CATEGORY_ICONS[cat.name] || 'grid' } size={ 22 } color={ p.iconColor } />
+                    <Ionicons name={ resolveCategoryIconName(cat) } size={ 22 } color={ p.iconColor } />
                   </View>
                   <Text style={ styles.catName } numberOfLines={ 1 } ellipsizeMode="tail">{ cat.name }</Text>
                 </TouchableOpacity>
