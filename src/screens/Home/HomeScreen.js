@@ -14,7 +14,7 @@ import {
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { serviceAPI, categoryService, walletService, offerService } from '../../services';
@@ -22,33 +22,17 @@ import { services as mockServices, categories as mockCategories } from '../../da
 import ProductCard from '../../components/ProductCard';
 import { Colors, Spacing, BorderRadius, Shadows } from '../../theme';
 
-const CATEGORY_ICONS = {
-  'Appliance Repair & Service': 'construct',
-  'Electrician, Plumber & Carpenter': 'flash',
-  'Home Cleaning': 'sparkles',
-  'Water Purifier': 'water',
-  'Bathroom & Kitchen': 'home',
-  'AC Service & Repair': 'snow',
-  'Painting & Renovation': 'color-palette',
-  'Pest Control': 'bug',
-};
+const resolveCategoryIconName = (iconName) => {
+  const iconKey = String(iconName || '').trim();
+  if (!iconKey) return 'help-outline';
 
-const MUI_TO_IONICONS = {
-  BuildCircle: 'construct',
-  ElectricalServices: 'flash',
-  CleaningServices: 'sparkles',
-  WaterDrop: 'water',
-  Bathtub: 'home',
-  AcUnit: 'snow',
-  FormatPaint: 'color-palette',
-  BugReport: 'bug',
-};
+  const kebabCase = iconKey
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .toLowerCase();
 
-const resolveCategoryIconName = (category) => {
-  const iconKey = String(category?.icon || '').trim();
-  if (iconKey && MUI_TO_IONICONS[iconKey]) return MUI_TO_IONICONS[iconKey];
-  if (iconKey && /^[a-z0-9-]+$/.test(iconKey)) return iconKey;
-  return CATEGORY_ICONS[category?.name] || 'grid';
+  if (MaterialIcons.glyphMap[kebabCase]) return kebabCase;
+  if (MaterialIcons.glyphMap[iconKey]) return iconKey;
+  return 'help-outline';
 };
 
 const CATEGORY_PALETTE = [
@@ -267,7 +251,7 @@ const HomeScreen = ({ navigation }) => {
                   onPress={ () => navigation.navigate('Services', { categoryId: cat.id, categoryName: cat.name }) }
                 >
                   <View style={ [styles.catIcon, { backgroundColor: p.iconBg }] }>
-                    <Ionicons name={ resolveCategoryIconName(cat) } size={ 22 } color={ p.iconColor } />
+                    <MaterialIcons name={ resolveCategoryIconName(cat.icon) } size={ 22 } color={ p.iconColor } />
                   </View>
                   <Text style={ styles.catName } numberOfLines={ 1 } ellipsizeMode="tail">{ cat.name }</Text>
                 </TouchableOpacity>
