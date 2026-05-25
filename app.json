@@ -29,7 +29,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.gfuture.mobile",
-      "versionCode": 10
+      "versionCode": 13
     },
     "web": {
       "favicon": "./assets/favicon.png"
