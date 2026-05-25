@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ScreenHeader from '../../components/ScreenHeader';
@@ -22,6 +23,7 @@ const SORT_OPTIONS = [
 ];
 
 const ServicesScreen = ({ route, navigation }) => {
+  const { width } = useWindowDimensions();
   const { categoryId, categoryName } = route.params || {};
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,7 @@ const ServicesScreen = ({ route, navigation }) => {
   const [sort, setSort] = useState('popular');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const listColumns = width < 360 ? 1 : 2;
 
   const fetchServices = useCallback(
     async (pageNum = 1, reset = false) => {
@@ -69,65 +72,67 @@ const ServicesScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={ styles.container }>
       <ScreenHeader
-        title={categoryName || 'Services'}
-        onBack={() => navigation.goBack()}
+        title={ categoryName || 'Services' }
+        onBack={ () => navigation.goBack() }
       />
 
-      {/* Sort Bar */}
-      <View style={styles.sortBar}>
-        {SORT_OPTIONS.map((opt) => (
+      {/* Sort Bar */ }
+      <View style={ styles.sortBar }>
+        { SORT_OPTIONS.map((opt) => (
           <TouchableOpacity
-            key={opt.value}
-            style={[styles.sortChip, sort === opt.value && styles.sortChipActive]}
-            onPress={() => setSort(opt.value)}
+            key={ opt.value }
+            style={ [styles.sortChip, sort === opt.value && styles.sortChipActive] }
+            onPress={ () => setSort(opt.value) }
           >
             <Text
-              style={[
+              style={ [
                 styles.sortText,
                 sort === opt.value && styles.sortTextActive,
-              ]}
+              ] }
             >
-              {opt.label}
+              { opt.label }
             </Text>
           </TouchableOpacity>
-        ))}
+        )) }
       </View>
 
       <FlatList
-        data={services}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        renderItem={({ item }) => (
+        data={ services }
+        key={ `services-grid-${listColumns}` }
+        keyExtractor={ (item) => item.id.toString() }
+        numColumns={ listColumns }
+        columnWrapperStyle={ listColumns > 1 ? styles.columnWrapper : null }
+        renderItem={ ({ item }) => (
           <ProductCard
-            item={item}
-            onPress={() => navigation.navigate('ProductDetail', { service: item })}
+            item={ item }
+            columns={ listColumns }
+            onPress={ () => navigation.navigate('ProductDetail', { service: item }) }
           />
-        )}
+        ) }
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={ refreshing } onRefresh={ onRefresh } />
         }
-        onEndReached={onEndReached}
-        onEndReachedThreshold={0.3}
+        onEndReached={ onEndReached }
+        onEndReachedThreshold={ 0.3 }
         ListFooterComponent={
           loading && !refreshing ? (
             <ActivityIndicator
-              style={{ marginVertical: 20 }}
-              color={Colors.primary}
+              style={ { marginVertical: 20 } }
+              color={ Colors.primary }
             />
           ) : null
         }
         ListEmptyComponent={
           !loading && (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={64} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>No services found</Text>
+            <View style={ styles.emptyContainer }>
+              <Ionicons name="search-outline" size={ 64 } color={ Colors.textMuted } />
+              <Text style={ styles.emptyText }>No services found</Text>
             </View>
           )
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={ styles.listContent }
       />
     </View>
   );

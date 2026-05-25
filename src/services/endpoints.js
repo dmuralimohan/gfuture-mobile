@@ -14,6 +14,8 @@ export const authService = {
 export const serviceAPI = {
   getAll: (params = {}) => api.get('/api/services', { params }),
   getById: (id) => api.get(`/api/services/${id}`),
+  getReviews: (id) => api.get(`/api/services/${id}/reviews`),
+  addReview: (id, data) => api.post(`/api/services/${id}/reviews`, data),
   create: (data) => api.post('/api/services', data),
   update: (id, data) => api.put(`/api/services/${id}`, data),
 };

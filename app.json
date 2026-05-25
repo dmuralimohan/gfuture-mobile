@@ -2,7 +2,7 @@
   "expo": {
     "name": "GFuture",
     "slug": "gfuture-mobile",
-    "version": "5.0.0",
+    "version": "8.0.1",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -24,13 +24,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
-        "backgroundColor": "#dbeafe"
+        "foregroundImage": "./assets/logo-foreground.png",
+        "backgroundColor": "#00000000"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.gfuture.mobile",
-      "usesCleartextTraffic": true,
-      "versionCode": 20
+      "versionCode": 10
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -27,68 +27,65 @@ const CartScreen = ({ navigation }) => {
   } = useCart();
 
   const renderCartItem = ({ item }) => (
-    <View style={[styles.cartItem, Shadows.sm]}>
+    <View style={ [styles.cartItem, Shadows.sm] }>
       <Image
-        source={{ uri: item.image }}
-        style={styles.itemImage}
+        source={ { uri: item.image } }
+        style={ styles.itemImage }
         contentFit="cover"
-        transition={200}
+        transition={ 200 }
       />
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemName} numberOfLines={2}>
-          {item.name}
+      <View style={ styles.itemDetails }>
+        <Text style={ styles.itemName } numberOfLines={ 2 }>
+          { item.name }
         </Text>
-        {item.selectedSize && (
-          <Text style={styles.itemSize}>Size: {item.selectedSize}</Text>
-        )}
-        <Text style={styles.itemPrice}>
-          ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+        <Text style={ styles.itemPrice }>
+          ₹{ (item.price * item.quantity).toLocaleString('en-IN') }
         </Text>
       </View>
-      <View style={styles.quantityControls}>
+      <View style={ styles.quantityControls }>
         <TouchableOpacity
-          style={styles.qtyBtn}
-          onPress={() => updateQuantity(item.cartKey, item.quantity - 1)}
+          style={ styles.qtyBtn }
+          onPress={ () => updateQuantity(item.cartKey, item.quantity - 1) }
         >
-          <Ionicons name="remove" size={16} color={Colors.textSecondary} />
+          <Ionicons name="remove" size={ 16 } color={ Colors.textSecondary } />
         </TouchableOpacity>
-        <Text style={styles.qtyText}>{item.quantity}</Text>
+        <Text style={ styles.qtyText }>{ item.quantity }</Text>
         <TouchableOpacity
-          style={styles.qtyBtn}
-          onPress={() => updateQuantity(item.cartKey, item.quantity + 1)}
+          style={ styles.qtyBtn }
+          onPress={ () => updateQuantity(item.cartKey, item.quantity + 1) }
         >
-          <Ionicons name="add" size={16} color={Colors.primary} />
+          <Ionicons name="add" size={ 16 } color={ Colors.primary } />
         </TouchableOpacity>
       </View>
       <TouchableOpacity
-        style={styles.removeBtn}
-        onPress={() =>
+        style={ styles.removeBtn }
+        onPress={ () =>
           Alert.alert('Remove Item', 'Remove this item from cart?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Remove', style: 'destructive', onPress: () => removeItem(item.cartKey) },
           ])
         }
       >
-        <Ionicons name="trash-outline" size={18} color={Colors.accentRed} />
+        <Ionicons name="trash-outline" size={ 18 } color={ Colors.accentRed } />
       </TouchableOpacity>
     </View>
   );
 
   if (items.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={ styles.container }>
         <ScreenHeader title="Cart" />
-        <View style={styles.emptyContainer}>
-          <Ionicons name="cart-outline" size={80} color={Colors.textMuted} />
-          <Text style={styles.emptyTitle}>Your cart is empty</Text>
-          <Text style={styles.emptySubtext}>
+        <View style={ styles.emptyContainer }>
+          <Ionicons name="cart-outline" size={ 80 } color={ Colors.textMuted } />
+          <Text style={ styles.emptyTitle }>Your cart is empty</Text>
+          <Text style={ styles.emptySubtext }>
             Browse our products and services to get started
           </Text>
           <GradientButton
             title="BROWSE NOW"
-            onPress={() => navigation.navigate('HomeTab')}
+            onPress={ () => navigation.navigate('HomeTab') }
             size="medium"
-            style={{ marginTop: 24 }}
+            style={ { marginTop: 24 } }
           />
         </View>
       </View>
@@ -96,11 +93,11 @@ const CartScreen = ({ navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={ styles.container }>
       <ScreenHeader
-        title={`Cart (${totalItems})`}
+        title={ `Cart (${totalItems})` }
         rightIcon="trash-outline"
-        onRightPress={() =>
+        onRightPress={ () =>
           Alert.alert('Clear Cart', 'Remove all items?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Clear', style: 'destructive', onPress: () => { /* clearCart */ } },
@@ -109,61 +106,61 @@ const CartScreen = ({ navigation }) => {
       />
 
       <FlatList
-        data={items}
-        keyExtractor={(item) => item.cartKey}
-        renderItem={renderCartItem}
-        contentContainerStyle={styles.listContent}
+        data={ items }
+        keyExtractor={ (item) => item.cartKey }
+        renderItem={ renderCartItem }
+        contentContainerStyle={ styles.listContent }
         ListFooterComponent={
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Order Summary</Text>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>
-                ₹{subtotal.toLocaleString('en-IN')}
+          <View style={ styles.summaryCard }>
+            <Text style={ styles.summaryTitle }>Order Summary</Text>
+            <View style={ styles.summaryRow }>
+              <Text style={ styles.summaryLabel }>Subtotal</Text>
+              <Text style={ styles.summaryValue }>
+                ₹{ subtotal.toLocaleString('en-IN') }
               </Text>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Platform Fee (1.02%)</Text>
-              <Text style={styles.summaryValue}>₹{platformFee.toFixed(2)}</Text>
+            <View style={ styles.summaryRow }>
+              <Text style={ styles.summaryLabel }>Platform Fee (1.02%)</Text>
+              <Text style={ styles.summaryValue }>₹{ platformFee.toFixed(2) }</Text>
             </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Delivery Fee</Text>
-              <View style={styles.deliveryRow}>
-                {deliveryFee === 0 && (
-                  <Text style={styles.strikethrough}>₹49</Text>
-                )}
+            <View style={ styles.summaryRow }>
+              <Text style={ styles.summaryLabel }>Delivery Fee</Text>
+              <View style={ styles.deliveryRow }>
+                { deliveryFee === 0 && (
+                  <Text style={ styles.strikethrough }>₹49</Text>
+                ) }
                 <Text
-                  style={[
+                  style={ [
                     styles.summaryValue,
                     deliveryFee === 0 && styles.freeText,
-                  ]}
+                  ] }
                 >
-                  {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
+                  { deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}` }
                 </Text>
               </View>
             </View>
-            <View style={styles.summaryDivider} />
-            <View style={styles.summaryRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>
-                ₹{total.toLocaleString('en-IN')}
+            <View style={ styles.summaryDivider } />
+            <View style={ styles.summaryRow }>
+              <Text style={ styles.totalLabel }>Total</Text>
+              <Text style={ styles.totalValue }>
+                ₹{ total.toLocaleString('en-IN') }
               </Text>
             </View>
           </View>
         }
       />
 
-      {/* Bottom action */}
-      <View style={styles.bottomBar}>
+      {/* Bottom action */ }
+      <View style={ styles.bottomBar }>
         <View>
-          <Text style={styles.bottomLabel}>Total</Text>
-          <Text style={styles.bottomTotal}>
-            ₹{total.toLocaleString('en-IN')}
+          <Text style={ styles.bottomLabel }>Total</Text>
+          <Text style={ styles.bottomTotal }>
+            ₹{ total.toLocaleString('en-IN') }
           </Text>
         </View>
         <GradientButton
           title="CHECKOUT"
-          onPress={() => navigation.navigate('Checkout')}
+          onPress={ () => navigation.navigate('Checkout') }
           size="medium"
         />
       </View>

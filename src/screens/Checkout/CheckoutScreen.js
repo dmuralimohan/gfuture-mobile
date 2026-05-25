@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,11 @@ import {
   Alert,
   TextInput,
   Switch,
+  Modal,
+  ActivityIndicator,
+  Linking,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +21,7 @@ import GradientButton from '../../components/GradientButton';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useWishlist } from '../../context/WishlistContext';
-import { orderService, walletService, offerService } from '../../services';
+import { orderService, walletService, offerService, paymentService } from '../../services';
 import { Colors, Spacing, BorderRadius, Shadows, Gradients } from '../../theme';
 
 const CheckoutScreen = ({ navigation }) => {
@@ -35,6 +39,14 @@ const CheckoutScreen = ({ navigation }) => {
   });
   const [note, setNote] = useState('');
   const [showNote, setShowNote] = useState(false);
+  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
+  const [razorpayPayment, setRazorpayPayment] = useState(null);
+  const [webviewLoading, setWebviewLoading] = useState(true);
+  const [showUpiModal, setShowUpiModal] = useState(false);
+  const [upiPayment, setUpiPayment] = useState(null);
+  const [paymentPolling, setPaymentPolling] = useState(false);
+  const pollTimerRef = useRef(null);
+  const pollAttemptRef = useRef(0);
 
   const fetchWallet = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -46,9 +58,219 @@ const CheckoutScreen = ({ navigation }) => {
 
   useEffect(() => { fetchWallet(); }, [fetchWallet]);
 
+  const stopPaymentPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    pollAttemptRef.current = 0;
+    setPaymentPolling(false);
+  }, []);
+
+  const finalizePaidOrder = useCallback(async () => {
+    await clearCart();
+    setShowRazorpayModal(false);
+    setRazorpayPayment(null);
+    setShowUpiModal(false);
+    setUpiPayment(null);
+    stopPaymentPolling();
+    Alert.alert('Payment Successful', 'Your payment is verified and order is confirmed.', [
+      { text: 'View Orders', onPress: () => navigation.navigate('Orders') },
+    ]);
+  }, [clearCart, navigation, stopPaymentPolling]);
+
+  const checkPaymentStatus = useCallback(async (paymentId, manual = false) => {
+    if (!paymentId) return;
+
+    try {
+      const { data } = await paymentService.pollStatus(paymentId);
+      const status = data?.payment?.status;
+
+      if (status === 'completed') {
+        await finalizePaidOrder();
+        return;
+      }
+
+      if (status === 'failed') {
+        stopPaymentPolling();
+        setShowUpiModal(false);
+        setUpiPayment(null);
+        Alert.alert('Payment Failed', 'Payment failed. Please try again from Orders.');
+        return;
+      }
+
+      if (manual) {
+        Alert.alert('Payment Pending', 'We have not received confirmation yet. Please wait a few seconds and try again.');
+      }
+    } catch {
+      if (manual) {
+        Alert.alert('Unable to Check', 'Could not fetch payment status right now. Please try again.');
+      }
+    }
+  }, [finalizePaidOrder, stopPaymentPolling]);
+
+  const startPaymentPolling = useCallback((paymentId) => {
+    if (!paymentId) return;
+    stopPaymentPolling();
+
+    setPaymentPolling(true);
+    pollAttemptRef.current = 0;
+
+    pollTimerRef.current = setInterval(() => {
+      pollAttemptRef.current += 1;
+      checkPaymentStatus(paymentId);
+
+      // Stop polling after ~5 minutes. User can continue from Orders.
+      if (pollAttemptRef.current >= 75) {
+        stopPaymentPolling();
+      }
+    }, 4000);
+  }, [checkPaymentStatus, stopPaymentPolling]);
+
+  useEffect(() => () => stopPaymentPolling(), [stopPaymentPolling]);
+
   const creditDiscount = useCredits ? Math.min((wallet?.credit_points || 0) * 0.5, total) : 0;
   const walletCanCover = (wallet?.balance || 0) >= (total - discount - creditDiscount);
   const finalTotal = Math.max(0, total - discount - creditDiscount);
+
+  const buildRazorpayHtml = (payment) => {
+    const amountPaise = Math.round((payment?.amount || 0) * 100);
+    const razorpayPublicKey = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || payment?.razorpayKeyId || '';
+    const escapedName = JSON.stringify(payment?.customerName || 'GFuture Customer');
+    const escapedEmail = JSON.stringify(payment?.customerEmail || '');
+    const escapedPhone = JSON.stringify(payment?.customerPhone || '');
+
+    return `
+      <!doctype html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+          <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              background: #0f172a;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #ffffff;
+              font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+            }
+          </style>
+        </head>
+        <body>
+          <div>Opening secure payment...</div>
+          <script>
+            (function () {
+              var options = {
+                key: ${JSON.stringify(razorpayPublicKey)},
+                amount: ${amountPaise},
+                currency: 'INR',
+                name: 'GFuture',
+                description: 'Order Payment',
+                order_id: ${JSON.stringify(payment?.razorpayOrderId || '')},
+                prefill: {
+                  name: ${escapedName},
+                  email: ${escapedEmail},
+                  contact: ${escapedPhone}
+                },
+                notes: {
+                  internal_payment_id: ${JSON.stringify(payment?.id || '')}
+                },
+                theme: {
+                  color: '#1a3af5'
+                },
+                modal: {
+                  ondismiss: function () {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'dismiss' }));
+                  }
+                },
+                handler: function (response) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'success',
+                    payload: response
+                  }));
+                }
+              };
+
+              var rzp = new Razorpay(options);
+              rzp.on('payment.failed', function (response) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'failed',
+                  payload: response && response.error ? response.error : {}
+                }));
+              });
+              rzp.open();
+            })();
+          </script>
+        </body>
+      </html>
+    `;
+  };
+
+  const closeRazorpayModalWithWebhookTracking = useCallback((reason = 'dismiss') => {
+    const currentPaymentId = razorpayPayment?.id;
+
+    setShowRazorpayModal(false);
+    setRazorpayPayment(null);
+
+    if (currentPaymentId) {
+      startPaymentPolling(currentPaymentId);
+      Alert.alert(
+        'Payment Processing',
+        'We are checking payment status with Razorpay webhook. You can also track this in Orders.',
+      );
+      return;
+    }
+
+    if (reason === 'failed') {
+      Alert.alert('Payment Failed', 'Transaction failed. Please try again.');
+      return;
+    }
+
+    Alert.alert('Payment Cancelled', 'You can complete payment later from your Orders.');
+  }, [razorpayPayment, startPaymentPolling]);
+
+  const handleRazorpayMessage = async (event) => {
+    let message;
+    try {
+      message = JSON.parse(event.nativeEvent.data || '{}');
+    } catch {
+      return;
+    }
+
+    if (message.type === 'dismiss') {
+      closeRazorpayModalWithWebhookTracking('dismiss');
+      return;
+    }
+
+    if (message.type === 'failed') {
+      closeRazorpayModalWithWebhookTracking('failed');
+      return;
+    }
+
+    if (message.type === 'success' && razorpayPayment?.id) {
+      setLoading(true);
+      try {
+        const payload = message.payload || {};
+        await paymentService.verify({
+          paymentId: razorpayPayment.id,
+          razorpay_order_id: payload.razorpay_order_id,
+          razorpay_payment_id: payload.razorpay_payment_id,
+          razorpay_signature: payload.razorpay_signature,
+        });
+
+        await finalizePaidOrder();
+      } catch (e) {
+        closeRazorpayModalWithWebhookTracking('verify_error');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -82,17 +304,52 @@ const CheckoutScreen = ({ navigation }) => {
         quantity: item.quantity,
       }));
 
-      await orderService.create({
+      const orderRes = await orderService.create({
         items: orderItems,
         address,
         note,
       });
 
-      await clearCart();
+      const orderId = orderRes?.data?.order?.id;
+      if (!orderId) {
+        throw new Error('Order ID missing in response');
+      }
+
+      if (useWalletPay && walletCanCover) {
+        await walletService.pay(orderId, useCredits);
+        await clearCart();
+        Alert.alert('Payment Successful', 'Paid using wallet and order confirmed.', [
+          { text: 'View Orders', onPress: () => navigation.navigate('Orders') },
+        ]);
+        return;
+      }
+
+      const paymentRes = await paymentService.initiate(orderId);
+      const payment = paymentRes?.data?.payment;
+
+      if (!payment) {
+        throw new Error('Payment initiation failed');
+      }
+
+      const razorpayPublicKey = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || payment.razorpayKeyId;
+      if (payment.method === 'razorpay' && payment.razorpayOrderId && razorpayPublicKey) {
+        setRazorpayPayment(payment);
+        setWebviewLoading(true);
+        setShowRazorpayModal(true);
+        return;
+      }
+
+      if (payment.method === 'upi' && payment.id) {
+        setUpiPayment(payment);
+        setShowUpiModal(true);
+        startPaymentPolling(payment.id);
+        return;
+      }
+
       Alert.alert(
-        'Order Placed! 🎉',
-        'Your order has been placed successfully.',
-        [{ text: 'View Orders', onPress: () => navigation.navigate('Orders') }],
+        'Payment Initiated',
+        'Razorpay is not configured, so fallback payment is enabled. You can complete this payment from your Orders.',
+        [{ text: 'Go to Orders', onPress: () => navigation.navigate('Orders') }],
       );
     } catch (e) {
       Alert.alert(
@@ -168,7 +425,6 @@ const CheckoutScreen = ({ navigation }) => {
                   { item.name }
                 </Text>
                 <Text style={ styles.orderMeta }>
-                  { item.selectedSize ? `${item.selectedSize} • ` : '' }
                   { item.duration || 'Standard' }
                 </Text>
               </View>
@@ -344,6 +600,113 @@ const CheckoutScreen = ({ navigation }) => {
           style={ styles.orderBtn }
         />
       </View>
+
+      <Modal
+        visible={ showRazorpayModal }
+        animationType="slide"
+        transparent={ false }
+        onRequestClose={ () => closeRazorpayModalWithWebhookTracking('dismiss') }
+      >
+        <View style={ styles.razorpayContainer }>
+          <View style={ styles.razorpayHeader }>
+            <Text style={ styles.razorpayTitle }>Secure Payment</Text>
+            <TouchableOpacity onPress={ () => closeRazorpayModalWithWebhookTracking('dismiss') }>
+              <Ionicons name="close" size={ 22 } color={ Colors.textPrimary } />
+            </TouchableOpacity>
+          </View>
+
+          { razorpayPayment && (
+            <WebView
+              originWhitelist={ ['*'] }
+              source={ { html: buildRazorpayHtml(razorpayPayment) } }
+              onMessage={ handleRazorpayMessage }
+              javaScriptEnabled
+              domStorageEnabled
+              startInLoadingState
+              onLoadStart={ () => setWebviewLoading(true) }
+              onLoadEnd={ () => setWebviewLoading(false) }
+            />
+          ) }
+
+          { webviewLoading && (
+            <View style={ styles.razorpayLoader }>
+              <ActivityIndicator size="large" color={ Colors.primary } />
+            </View>
+          ) }
+        </View>
+      </Modal>
+
+      <Modal
+        visible={ showUpiModal }
+        animationType="slide"
+        transparent={ false }
+        onRequestClose={ () => {
+          setShowUpiModal(false);
+          stopPaymentPolling();
+        } }
+      >
+        <View style={ styles.upiContainer }>
+          <View style={ styles.razorpayHeader }>
+            <Text style={ styles.razorpayTitle }>Scan & Pay (UPI)</Text>
+            <TouchableOpacity
+              onPress={ () => {
+                setShowUpiModal(false);
+                stopPaymentPolling();
+              } }
+            >
+              <Ionicons name="close" size={ 22 } color={ Colors.textPrimary } />
+            </TouchableOpacity>
+          </View>
+
+          <View style={ styles.upiBody }>
+            <Text style={ styles.upiAmount }>₹{ Number(upiPayment?.amount || 0).toLocaleString('en-IN') }</Text>
+            <Text style={ styles.upiSubtitle }>Scan this QR in any UPI app and complete payment</Text>
+
+            { upiPayment?.qrCode ? (
+              <Image
+                source={ { uri: upiPayment.qrCode } }
+                style={ styles.upiQr }
+                contentFit="contain"
+              />
+            ) : (
+              <View style={ [styles.upiQr, styles.upiQrPlaceholder] }>
+                <Text style={ styles.upiPlaceholderText }>QR unavailable</Text>
+              </View>
+            ) }
+
+            <TouchableOpacity
+              style={ styles.upiOpenAppBtn }
+              onPress={ async () => {
+                try {
+                  if (upiPayment?.upiLink) {
+                    await Linking.openURL(upiPayment.upiLink);
+                  }
+                } catch {
+                  Alert.alert('No UPI App', 'No UPI app found. Please scan the QR code manually.');
+                }
+              } }
+            >
+              <Text style={ styles.upiOpenAppBtnText }>Open UPI App</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={ styles.upiCheckBtn }
+              onPress={ () => checkPaymentStatus(upiPayment?.id, true) }
+            >
+              <Text style={ styles.upiCheckBtnText }>I Have Paid, Check Status</Text>
+            </TouchableOpacity>
+
+            <View style={ styles.pollInfoRow }>
+              { paymentPolling && <ActivityIndicator size="small" color={ Colors.primary } /> }
+              <Text style={ styles.pollInfoText }>
+                { paymentPolling
+                  ? 'Waiting for payment confirmation...'
+                  : 'Auto-check paused. You can still check manually.' }
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -649,6 +1012,108 @@ const styles = StyleSheet.create({
   savedBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.success },
   orderBtn: {
     width: '100%',
+  },
+
+  // Razorpay Modal
+  razorpayContainer: {
+    flex: 1,
+    backgroundColor: Colors.backgroundPaper,
+  },
+  razorpayHeader: {
+    height: 56,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    paddingHorizontal: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  razorpayTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  razorpayLoader: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+
+  // UPI modal
+  upiContainer: {
+    flex: 1,
+    backgroundColor: Colors.backgroundPaper,
+  },
+  upiBody: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+  },
+  upiAmount: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  upiSubtitle: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  upiQr: {
+    width: 240,
+    height: 240,
+    borderRadius: BorderRadius.md,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    marginBottom: Spacing.lg,
+  },
+  upiQrPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upiPlaceholderText: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  upiOpenAppBtn: {
+    width: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  upiOpenAppBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  upiCheckBtn: {
+    width: '100%',
+    backgroundColor: '#eef2ff',
+    borderRadius: BorderRadius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  upiCheckBtnText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pollInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: Spacing.lg,
+  },
+  pollInfoText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });
 

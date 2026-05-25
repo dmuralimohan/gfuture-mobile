@@ -4,49 +4,52 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, BorderRadius, Spacing, Shadows } from '../theme';
 
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - Spacing.xl * 3) / 2;
+const ProductCard = ({ item, onPress, style, columns = 2, horizontalPadding = Spacing.xl }) => {
+  const { width } = useWindowDimensions();
+  const safeColumns = Math.max(1, columns);
+  const gutter = Spacing.lg;
+  const totalHorizontal = horizontalPadding * 2 + gutter * (safeColumns - 1);
+  const cardWidth = Math.max(160, (width - totalHorizontal) / safeColumns);
 
-const ProductCard = ({ item, onPress, style }) => {
   return (
     <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      style={[styles.card, Shadows.md, style]}
+      onPress={ onPress }
+      activeOpacity={ 0.85 }
+      style={ [styles.card, { width: cardWidth }, Shadows.md, style] }
     >
-      <View style={styles.imageContainer}>
+      <View style={ styles.imageContainer }>
         <Image
-          source={{ uri: item.image }}
-          style={styles.image}
+          source={ { uri: item.image } }
+          style={ styles.image }
           contentFit="cover"
-          placeholder={{ blurhash: 'LKO2?U%2Tw=w]~RBVZRi};RPxuwH' }}
-          transition={300}
+          placeholder={ { blurhash: 'LKO2?U%2Tw=w]~RBVZRi};RPxuwH' } }
+          transition={ 300 }
         />
-        {item.rating && (
-          <View style={styles.ratingBadge}>
-            <Ionicons name="star" size={10} color={Colors.star} />
-            <Text style={styles.ratingText}>{item.rating}</Text>
+        { item.rating && (
+          <View style={ styles.ratingBadge }>
+            <Ionicons name="star" size={ 10 } color={ Colors.star } />
+            <Text style={ styles.ratingText }>{ item.rating }</Text>
           </View>
-        )}
+        ) }
       </View>
-      <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={1}>
-          {item.name}
+      <View style={ styles.content }>
+        <Text style={ styles.name } numberOfLines={ 1 }>
+          { item.name }
         </Text>
-        <View style={styles.bottomRow}>
-          <Text style={styles.price}>₹{item.price?.toLocaleString('en-IN')}</Text>
+        <View style={ styles.bottomRow }>
+          <Text style={ styles.price }>₹{ item.price?.toLocaleString('en-IN') }</Text>
           <TouchableOpacity
-            onPress={onPress}
-            style={styles.arrowBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={ onPress }
+            style={ styles.arrowBtn }
+            hitSlop={ { top: 8, bottom: 8, left: 8, right: 8 } }
           >
-            <Ionicons name="arrow-forward" size={16} color={Colors.textWhite} />
+            <Ionicons name="arrow-forward" size={ 16 } color={ Colors.textWhite } />
           </TouchableOpacity>
         </View>
       </View>
@@ -56,7 +59,6 @@ const ProductCard = ({ item, onPress, style }) => {
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
     backgroundColor: Colors.backgroundPaper,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
@@ -64,7 +66,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: '100%',
-    height: CARD_WIDTH * 0.75,
+    aspectRatio: 1.33,
     backgroundColor: '#e5e7eb',
     position: 'relative',
   },

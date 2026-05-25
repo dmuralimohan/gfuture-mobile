@@ -37,9 +37,10 @@ const MENU_SECTIONS = [
   {
     title: 'Support',
     items: [
-      { icon: 'shield-checkmark-outline', label: 'Privacy & Security', route: null, color: Colors.primary },
-      { icon: 'help-circle-outline', label: 'Help & Support', route: null, color: Colors.accentCyan },
-      { icon: 'information-circle-outline', label: 'About GFuture', route: null, color: Colors.textSecondary },
+      { icon: 'lock-closed-outline', label: 'Security', route: 'Security', color: Colors.primary },
+      { icon: 'shield-checkmark-outline', label: 'Privacy Policy', route: 'Privacy', color: Colors.accentGreen },
+      { icon: 'help-circle-outline', label: 'Help & Support', route: 'Help', color: Colors.accentCyan },
+      { icon: 'information-circle-outline', label: 'About GFuture', route: 'About', color: Colors.textSecondary },
     ],
   },
 ];
@@ -306,7 +307,13 @@ const ProfileScreen = ({ navigation }) => {
             <TouchableOpacity
               key={ index }
               style={ styles.menuItem }
-              onPress={ () => item.route && navigation.navigate(item.route) }
+              onPress={ () => {
+                if (item.route) {
+                  navigation.navigate(item.route);
+                  return;
+                }
+                Alert.alert('Coming Soon', `${item.label} will be available shortly.`);
+              } }
             >
               <View style={ styles.menuItemLeft }>
                 <View style={ [styles.menuIcon, { backgroundColor: `${item.color}15` }] }>

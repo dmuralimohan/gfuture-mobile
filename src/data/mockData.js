@@ -235,3 +235,18 @@ export const plans = [
     features: ['Global Governance', 'Market Pool'],
   },
 ];
+
+export const reviewCommentsByService = {
+  1: [
+    { id: 'r-1-1', user: 'Aarav K', rating: 5, date: '2026-05-10', comment: 'Technician arrived on time and fixed the drum noise quickly.' },
+    { id: 'r-1-2', user: 'Neha R', rating: 4, date: '2026-04-29', comment: 'Good service. Explained the issue clearly before replacing a part.' },
+  ],
+  2: [
+    { id: 'r-2-1', user: 'Vikram S', rating: 5, date: '2026-05-08', comment: 'Cooling improved immediately after deep clean.' },
+    { id: 'r-2-2', user: 'Priya M', rating: 5, date: '2026-04-30', comment: 'Very professional AC service with proper checklist.' },
+  ],
+  3: [
+    { id: 'r-3-1', user: 'Sanjay P', rating: 4, date: '2026-05-02', comment: 'Team was polite and thorough. Kitchen looked brand new.' },
+    { id: 'r-3-2', user: 'Ritika D', rating: 5, date: '2026-04-25', comment: 'Worth it for festive cleaning. Highly recommended.' },
+  ],
+};

@@ -83,6 +83,13 @@ const HelpScreen = ({ navigation }) => {
                     <Text style={ styles.contactText }>
                         Visit our Support Center or contact our team
                     </Text>
+                    <TouchableOpacity
+                        style={ styles.supportBtn }
+                        onPress={ () => navigation.navigate('Support') }
+                    >
+                        <Text style={ styles.supportBtnText }>Contact Support</Text>
+                        <Ionicons name="chevron-forward" size={ 16 } color={ Colors.textWhite } />
+                    </TouchableOpacity>
                 </View>
 
                 <Text style={ styles.lastUpdated }>Last Updated: May 11, 2026</Text>
@@ -164,6 +171,22 @@ const styles = StyleSheet.create({
     contactText: {
         fontSize: 14,
         color: Colors.textSecondary,
+    },
+    supportBtn: {
+        marginTop: Spacing.lg,
+        alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.xs,
+        backgroundColor: Colors.primary,
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.sm,
+        borderRadius: BorderRadius.round,
+    },
+    supportBtnText: {
+        color: Colors.textWhite,
+        fontSize: 13,
+        fontWeight: '700',
     },
     lastUpdated: {
         fontSize: 12,
